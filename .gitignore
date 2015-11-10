@@ -1,0 +1,7 @@
+*.pyc
+client_secrets.json
+*.db
+config.py
+venv/
+.idea/
+db_repository/

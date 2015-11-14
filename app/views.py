@@ -1,12 +1,11 @@
-from flask import render_template, flash, redirect, url_for, request, session, g, make_response
-from flask.ext.login import login_user, logout_user, current_user, login_required
 from app import app, db, lm, models
-from flask.ext.wtf import Form
-from wtforms.ext.sqlalchemy.orm import model_form
-from wtforms import validators
+from flask import abort, render_template, flash, redirect, url_for, request, session, g, make_response
+from flask.ext.login import login_user, logout_user, current_user, login_required
 from oauth2client import client
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
+import config
 import json
+import requests
 
 
 @app.before_request
@@ -69,19 +68,22 @@ def oauth2callback():
 @login_required
 def dashboard():
     first_day = date(date.today().year, 1, 1)
-    vacations_bulk = models.VacationItem.query.filter(models.VacationItem.start >= first_day)
+    vacations_bulk = models.VacationItem.query.filter(models.VacationItem.start >= first_day).order_by(
+        models.VacationItem.approved)
     data = []
     for vacation in vacations_bulk:
         start = datetime.strftime(vacation.start, "%Y-%m-%dT%H:%M:%S")
-        end = datetime.strftime(vacation.end, "%Y-%m-%dT%H:%M:%S")
+        end = datetime.strftime(vacation.end + timedelta(days=1), "%Y-%m-%dT%H:%M:%S")
         v = {
             'start': start,
             'end': end,
             'title': vacation.user.email.split('@')[0]
         }
         data.append(v)
-
-    user_vacations = models.VacationItem.query.filter_by(user=current_user).all()
+    if not current_user.is_superuser():
+        user_vacations = models.VacationItem.query.filter_by(user=current_user).order_by(models.VacationItem.approved)
+    else:
+        user_vacations = vacations_bulk
     return render_template('dashboard.html', events=json.dumps(data), u_v=user_vacations)
 
 
@@ -90,13 +92,12 @@ def dashboard():
 def add_vacation():
     event_data = request.form['event_data']
     if not event_data:
-        return make_response('Wrong Data', 304)
+        abort(304)
     event_data = json.loads(event_data)
     start = datetime.strptime(event_data['start'], "%Y-%m-%dT%H:%M:%S.%fZ")
-    end = datetime.strptime(event_data['end'], "%Y-%m-%dT%H:%M:%S.%fZ")
+    end = datetime.strptime(event_data['end'], "%Y-%m-%dT%H:%M:%S.%fZ") - timedelta(days=1)
     v_item = models.VacationItem(description=event_data['title'], approved=False,
-                                 start=start, end=end,
-                                 user=current_user)
+                                 start=start, end=end, user=current_user)
     db.session.add(v_item)
     db.session.commit()
     return 'success', 200
@@ -105,13 +106,63 @@ def add_vacation():
 @app.route('/v_delete/<v_id>')
 @login_required
 def delete_vacation(v_id):
-    vacation = models.VacationItem.query.filter_by(user=current_user, id=v_id).first_or_404()
+    if not current_user.is_superuser():
+        vacation = models.VacationItem.query.filter_by(user=current_user, id=v_id).first_or_404()
+    else:
+        vacation = models.VacationItem.query.filter_by(id=v_id).first_or_404()
     db.session.delete(vacation)
     db.session.commit()
     return redirect(url_for('dashboard'))
 
 
-@app.route('/v_edit/<v_id>')
+@app.route('/v_approve/<v_id>')
 @login_required
-def edit_vacation(v_id):
-    pass
+def approve_vacation(v_id):
+    if not current_user.is_superuser():
+        abort(401)
+    vacation = models.VacationItem.query.filter_by(id=v_id).first_or_404()
+    vacation.approved = True
+    db.session.commit()
+    return redirect(url_for('dashboard'))
+
+
+@app.route('/<secret>/notify')
+def notify(secret):
+    if secret != config.NOTIFY_SECRET:
+        abort(401)
+    unconfirmed_v = models.VacationItem.query.filter_by(approved=False) \
+        .filter(models.VacationItem.start >= datetime.today())
+    if unconfirmed_v.count() == 0:
+        return ''
+    send_message = False
+    text = 'Vacations update: \n\n'
+    for vacation in unconfirmed_v:
+        delta = vacation.start - datetime.today()
+        if delta.days < 14:
+            send_message = True
+            text += 'Hey, ' + vacation.user.email.split('@')[0] + '! Your Vacation still not approved (' + \
+                    str(delta.days) + ' days remaining). Send this code to Ivan: ' + \
+                    vacation.user.email.split('@')[0] + '_' + str(vacation.id) + '\n\n'
+        else:
+            continue
+    if send_message:
+        url = "https://api.telegram.org/bot%s/sendMessage" % config.TELEGRAM_BOT_TOKEN
+        payload = {
+            'chat_id': config.TELEGRAM_TARGET_CHANNEL,
+            'text': text
+        }
+        headers = {'content-type': "application/x-www-form-urlencoded"}
+        requests.request("POST", url, data=payload, headers=headers)
+    return ''
+
+
+@app.context_processor
+def utility_processor():
+    def get_username(email_string):
+        return email_string.split('@')[0]
+
+    def count(obj):
+        num = True if obj.count() > 0 else False
+        return num
+
+    return dict(get_username=get_username, count=count)

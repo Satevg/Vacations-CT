@@ -3,6 +3,7 @@
 <script src='static/fullcalendar-2.4.0/lib/jquery.min.js'></script>
 <script src='static/fullcalendar-2.4.0/lib/moment.min.js'></script>
 <script src='static/fullcalendar-2.4.0/fullcalendar.js'></script>
+<script src='static/list.js'></script>
 <link href="static/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 <link href="static/custom.css" rel="stylesheet">
 </head>
@@ -17,44 +18,66 @@
 
 <div id='calendar'></div>
 <hr>
-<div class="row">
-    <div class="col-md-6 col-md-offset-3">
-        <table class="table table-bordered">
-            <caption>Your Vacations.</caption>
-            <thead>
-                <tr>
-                    <th>Description</th>
-                    <th>Start Date</th>
-                    <th>End Date</th>
-                    <th>Status</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for vacation in u_v %}
+{% if count(u_v) %}
+    <div class="row">
+        <div class="col-md-6 col-md-offset-3" id="kkk">
+            {% if current_user.is_superuser() %}
+                <input class="search" placeholder="Example: evgeniy.s_2" />
+            {% endif %}
+            <table class="table table-bordered">
+                {% if current_user.is_superuser() %}
+                    <caption>CT Vacations:</caption>
+                {% else %}
+                    <caption>Your Vacations:</caption>
+                {% endif %}
+                <thead>
                     <tr>
-                        <td>{{ vacation.description }}</td>
-                        <td>{{ vacation.start.strftime('%d-%m-%Y') }}</td>
-                        <td>{{ vacation.end.strftime('%d-%m-%Y') }}</td>
-                        {% if vacation.apprived %}
-                            <td class="success">True</td>
-                        {% else %}
-                            <td class="danger">False</td>
+                        {% if current_user.is_superuser() %}
+                            <th>Person</th>
                         {% endif %}
-                        <td>
-                            <a href="" class="btn btn-default btn-xs">Edit</a>
-                            <a href="{{ url_for('delete_vacation', v_id=vacation.id) }}" class="btn btn-default btn-xs">Delete</a>
-                        </td>
+                        <th>Description</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        <th>Status</th>
+                        <th hidden>search_str</th>
+                        <th></th>
                     </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                </thead>
+                <tbody class="list">
+                    {% for vacation in u_v %}
+                        <tr>
+                            {% if current_user.is_superuser() %}
+                                <td>{{ get_username(vacation.user.email) }}</td>
+                            {% endif %}
+                            <td>{{ vacation.description }}</td>
+                            <td>{{ vacation.start.strftime('%d-%m-%Y') }}</td>
+                            <td>{{ vacation.end.strftime('%d-%m-%Y') }}</td>
+                            {% if vacation.approved %}
+                                <td class="success">Approved</td>
+                            {% else %}
+                                <td class="danger">Pending</td>
+                            {% endif %}
+                            <td class="search_str" hidden>{{ get_username(vacation.user.email) }}_{{ vacation.id }}</td>
+                            <td>
+                                {% if current_user.is_superuser() %}
+                                    <a href="{{ url_for('approve_vacation', v_id=vacation.id) }}" class="btn btn-primary btn-xs">Approve</a>
+                                {% endif %}
+                                <a href="{{ url_for('delete_vacation', v_id=vacation.id) }}" class="btn btn-default btn-xs">Delete</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
-</div>
-
+{% endif %}
 <script>
-$(document).ready(function() {
 	$(document).ready(function() {
+        var options = {
+            valueNames: [ 'search_str' ]
+        };
+        var userList = new List('kkk', options);
+
         var today = new Date();
 		$('#calendar').fullCalendar({
 			header: {
@@ -74,7 +97,6 @@ $(document).ready(function() {
 						start: start,
 						end: end
 					};
-                    console.log(eventData);
                     var settings = {
                         "url": "http://127.0.0.1:5000/v_add",
                         "method": "POST",
@@ -83,7 +105,7 @@ $(document).ready(function() {
                         }
                     };
                     $.ajax(settings).done(function (response) {
-                        console.log(response);
+                        window.location.reload();
                     });
 
 					$('#calendar').fullCalendar('renderEvent', eventData, true); // stick? = true
@@ -97,7 +119,6 @@ $(document).ready(function() {
 		});
         $('.fc-time').hide()
 	});
-});
 </script>
 
 

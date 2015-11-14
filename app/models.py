@@ -29,6 +29,12 @@ class User(db.Model):
         except NameError:
             return str(self.id)  # python 3
 
+    def is_superuser(self):
+        if self.role == 1:
+            return True
+        else:
+            return False
+
     def __repr__(self):
         return '<User %r>' % (self.name)
 

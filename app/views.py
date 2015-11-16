@@ -67,8 +67,7 @@ def oauth2callback():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    first_day = date(date.today().year, 1, 1)
-    vacations_bulk = models.VacationItem.query.filter(models.VacationItem.start >= first_day).order_by(
+    vacations_bulk = models.VacationItem.query.filter_by(approved=True).order_by(
         models.VacationItem.approved)
     data = []
     for vacation in vacations_bulk:

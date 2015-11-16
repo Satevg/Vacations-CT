@@ -86,7 +86,7 @@
 	}
 </style>
 
-    <script>
+<script>
 	$(document).ready(function() {
         var options = {
             valueNames: [ 'search_str' ]
@@ -104,28 +104,44 @@
 			selectable: true,
 			selectHelper: true,
 			select: function(start, end) {
-				var title = prompt('Few words for Ivan:');
-				var eventData;
-				if (title) {
-					eventData = {
-						title: title,
-						start: start,
-						end: end
-					};
-                    var settings = {
-                        "url": "http://127.0.0.1:5000/v_add",
-                        "method": "POST",
-                        "data": {
-                            "event_data": JSON.stringify(eventData)
-                        }
-                    };
-                    $.ajax(settings).done(function (response) {
-                        window.location.reload();
-                    });
+{#				var title = prompt('Few words for Ivan:');#}
+                swal({
+                    title:"!",
+                    text: "Few Words for Ivan",
+                    type: "input",
+                    showCancelButton: true,
+                    closeOnConfirm: false,
+                    animation: "slide-from-top"
+                },
+                function(inputValue){
+                    if (inputValue === false) return false;
+                    if (inputValue === "") {
+                        swal.showInputError("You need to write something!");
+                        return false
+                    }
+                    swal("Nice!");
+                    var eventData;
+                    if (inputValue) {
+                        eventData = {
+                            title: inputValue,
+                            start: start,
+                            end: end
+                        };
+                        var settings = {
+                            "url": "http://127.0.0.1:5000/v_add",
+                            "method": "POST",
+                            "data": {
+                                "event_data": JSON.stringify(eventData)
+                            }
+                        };
+                        $.ajax(settings).done(function (response) {
+                            window.location.reload();
+                        });
 
-					$('#calendar').fullCalendar('renderEvent', eventData, true); // stick? = true
-				}
-				$('#calendar').fullCalendar('unselect');
+                        $('#calendar').fullCalendar('renderEvent', eventData, true); // stick? = true
+                    }
+				    $('#calendar').fullCalendar('unselect');
+                });
 			},
 			editable: false,
             timezone: 'UTC',

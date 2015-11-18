@@ -4,12 +4,6 @@
     <link rel='stylesheet' href='static/fullcalendar-2.4.0/fullcalendar.css' />
 {% endblock %}
 
-
-{% if g.user.is_authenticated %}
-    {{ g.user.email }}
-|   <a href="{{ url_for('logout') }}">Logout</a>
-{% endif %}
-
 {% block body %}
 <div id='calendar'></div>
 <hr>
@@ -104,7 +98,6 @@
 			selectable: true,
 			selectHelper: true,
 			select: function(start, end) {
-{#				var title = prompt('Few words for Ivan:');#}
                 swal({
                     title:"!",
                     text: "Few Words for Ivan",

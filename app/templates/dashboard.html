@@ -49,8 +49,10 @@
                             <td class="search_str" hidden>{{ get_username(vacation.user.email) }}_{{ vacation.id }}</td>
                             <td>
                                 {% if current_user.is_superuser() %}
-                                    <a href="{{ url_for('approve_vacation', v_id=vacation.id) }}" class="btn btn-primary btn-xs">Approve</a>
-                                {% endif %}
+				    {% if vacation.approved == False %}	
+					<a href="{{ url_for('approve_vacation', v_id=vacation.id) }}" class="btn btn-primary btn-xs">Approve</a>
+                                    {% endif %} 
+				 {% endif %}
                                 <a href="{{ url_for('delete_vacation', v_id=vacation.id) }}" class="btn btn-default btn-xs">Delete</a>
                             </td>
                         </tr>
@@ -121,7 +123,7 @@
                             end: end
                         };
                         var settings = {
-                            "url": "http://127.0.0.1:5000/v_add",
+                            "url": "http://ctvacations.tk/v_add",
                             "method": "POST",
                             "data": {
                                 "event_data": JSON.stringify(eventData)

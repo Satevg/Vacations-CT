@@ -43,7 +43,7 @@ def logout():
 def oauth2callback():
     flow = client.flow_from_clientsecrets('client_secrets.json',
                                           scope='https://www.googleapis.com/auth/plus.profile.emails.read',
-                                          redirect_uri='http://127.0.0.1:5000/oauth2callback')
+                                          redirect_uri='http://ctvacations.tk/oauth2callback')
     if 'code' not in request.args:
         auth_uri = flow.step1_get_authorize_url()
         return redirect(auth_uri)
@@ -80,9 +80,9 @@ def dashboard():
         }
         data.append(v)
     if not current_user.is_superuser():
-        user_vacations = models.VacationItem.query.filter_by(user=current_user).order_by(models.VacationItem.approved)
+        user_vacations = models.VacationItem.query.filter_by(user=current_user).order_by(models.VacationItem.approved).all()
     else:
-        user_vacations = vacations_bulk
+        user_vacations = models.VacationItem.query.all()
     return render_template('dashboard.html', events=json.dumps(data), u_v=user_vacations)
 
 
@@ -161,7 +161,7 @@ def utility_processor():
         return email_string.split('@')[0]
 
     def count(obj):
-        num = True if obj.count() > 0 else False
+        num = True if len(obj) > 0 else False
         return num
 
     return dict(get_username=get_username, count=count)
